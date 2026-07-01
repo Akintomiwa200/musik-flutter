@@ -1,0 +1,39 @@
+name: musik
+description: A Spotify-inspired music player with USB support and APK updates.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  just_audio: ^0.9.40
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_windows_audio: ^1.0.9
+  audio_session: ^0.1.21
+  provider: ^6.1.2
+  path_provider: ^2.1.4
+  permission_handler: ^11.3.1
+  file_picker: ^8.1.2
+  shared_preferences: ^2.3.2
+  http: ^1.2.2
+  package_info_plus: ^8.0.2
+  url_launcher: ^6.3.0
+  flutter_svg: ^2.0.10+1
+  google_fonts: ^6.2.1
+  image_picker: ^1.1.2
+  youtube_explode_dart: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/images/musik_logo.svg
