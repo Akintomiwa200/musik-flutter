@@ -31,7 +31,7 @@ class TrackTile extends StatelessWidget {
                   ? const Icon(Icons.equalizer, color: AppColors.musikAccent, size: 20)
                   : Text(
                       '$index',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                      style: TextStyle(color: context.textSecondary, fontSize: 14),
                     ),
             ),
             const SizedBox(width: 12),
@@ -46,7 +46,7 @@ class TrackTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: isPlaying ? AppColors.musikAccent : AppColors.textPrimary,
+                      color: isPlaying ? AppColors.musikAccent : context.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -54,14 +54,14 @@ class TrackTile extends StatelessWidget {
                     '${track.artist} · ${track.source.toUpperCase()}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    style: TextStyle(fontSize: 13, color: context.textSecondary),
                   ),
                 ],
               ),
             ),
             Text(
               track.displayDuration,
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: context.textSecondary),
             ),
           ],
         ),
@@ -69,3 +69,5 @@ class TrackTile extends StatelessWidget {
     );
   }
 }
+
+

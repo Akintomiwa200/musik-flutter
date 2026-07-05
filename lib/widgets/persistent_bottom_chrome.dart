@@ -46,7 +46,8 @@ class PersistentBottomChrome extends StatelessWidget {
                 track: player.currentTrack,
                 deviceLabel: device.activeDeviceLabel,
                 isPlaying: player.isPlaying,
-                isLoading: player.isResolving || player.state == PlaybackStatus.loading,
+                isLoading: player.isResolving ||
+                    player.state == PlaybackStatus.loading,
                 progress: progress,
                 onTap: () => _openNowPlaying(context),
                 onPlayPause: player.togglePlayPause,
@@ -57,25 +58,35 @@ class PersistentBottomChrome extends StatelessWidget {
         NavigationBar(
           selectedIndex: selectedIndex,
           onDestinationSelected: onTabSelected,
-          backgroundColor: AppColors.surface,
-          indicatorColor: AppColors.surfaceHighlight,
+          backgroundColor: context.surface,
+          indicatorColor: AppColors.musikAccent.withValues(alpha: 0.12),
           height: 64,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: const [
+          destinations: [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home),
               label: 'Home',
             ),
             NavigationDestination(
-              icon: Icon(Icons.search),
-              selectedIcon: Icon(Icons.search),
-              label: 'Search',
+              icon: Icon(Icons.explore_outlined),
+              selectedIcon: Icon(Icons.explore),
+              label: 'Discover',
             ),
             NavigationDestination(
-              icon: Icon(Icons.library_music_outlined),
-              selectedIcon: Icon(Icons.library_music),
-              label: 'Library',
+              icon: Icon(Icons.cloud_download_outlined),
+              selectedIcon: Icon(Icons.cloud_download),
+              label: 'Download',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.queue_music_outlined),
+              selectedIcon: Icon(Icons.queue_music),
+              label: 'Playlist',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person),
+              label: 'Profile',
             ),
           ],
         ),
@@ -100,7 +111,7 @@ class ChromeScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: appBar,
       body: body,
       bottomNavigationBar: PersistentBottomChrome(
@@ -110,3 +121,5 @@ class ChromeScaffold extends StatelessWidget {
     );
   }
 }
+
+

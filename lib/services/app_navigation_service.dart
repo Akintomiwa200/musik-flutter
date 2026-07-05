@@ -1,21 +1,29 @@
 import 'package:flutter/foundation.dart';
 
+enum AppTab { home, search, recents, queue, profile }
+
 /// Coordinates main-tab navigation and cross-tab actions (search, etc.).
 class AppNavigationService extends ChangeNotifier {
-  int _tabIndex = 0;
+  AppTab _tab = AppTab.home;
   String? _pendingSearch;
 
-  int get tabIndex => _tabIndex;
+  AppTab get tab => _tab;
+  int get tabIndex => AppTab.values.indexOf(_tab);
 
-  void setTab(int index) {
-    if (_tabIndex == index && _pendingSearch == null) return;
-    _tabIndex = index;
+  void setTab(AppTab tab) {
+    if (_tab == tab && _pendingSearch == null) return;
+    _tab = tab;
     notifyListeners();
+  }
+
+  void setTabIndex(int index) {
+    final t = AppTab.values[index];
+    setTab(t);
   }
 
   void openSearchTab([String? query]) {
     _pendingSearch = query;
-    _tabIndex = 1;
+    _tab = AppTab.search;
     notifyListeners();
   }
 

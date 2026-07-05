@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../data/sample_content.dart';
+import '../../models/track.dart';
+import '../../services/deezer_api_service.dart';
 import '../../services/preferences_service.dart';
 import '../../theme/app_theme.dart';
 import 'choose_podcasts_screen.dart';
@@ -16,6 +17,16 @@ class ChooseArtistsScreen extends StatefulWidget {
 class _ChooseArtistsScreenState extends State<ChooseArtistsScreen> {
   final _searchController = TextEditingController();
   String _query = '';
+  List<Track> _searchResults = [];
+  bool _searching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DeezerApiService>().fetchChart();
+    });
+  }
 
   @override
   void dispose() {
@@ -23,16 +34,31 @@ class _ChooseArtistsScreenState extends State<ChooseArtistsScreen> {
     super.dispose();
   }
 
-  List<ArtistItem> get _filtered {
-    if (_query.isEmpty) return SampleContent.artists;
-    return SampleContent.artists
-        .where((a) => a.name.toLowerCase().contains(_query.toLowerCase()))
-        .toList();
+  Future<void> _onSearch(String value) async {
+    setState(() => _query = value);
+    if (value.trim().isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    setState(() => _searching = true);
+    final results = await context.read<DeezerApiService>().search(value);
+    if (!mounted) return;
+    setState(() {
+      _searchResults = results;
+      _searching = false;
+    });
+  }
+
+  List<String> _artists(List<Track> chart) {
+    final source = _query.trim().isEmpty ? chart : _searchResults;
+    return {for (final track in source) track.artist}.where((artist) => artist.trim().isNotEmpty).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final prefs = context.watch<PreferencesService>();
+    final chart = context.watch<DeezerApiService>().chartTracks;
+    final artists = _artists(chart);
     final selected = prefs.selectedArtists;
     final canContinue = selected.length >= 3;
 
@@ -53,54 +79,53 @@ class _ChooseArtistsScreenState extends State<ChooseArtistsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 0, 24, 16),
               child: Text(
                 'Choose 3 or more artists you like.',
-                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, height: 1.2),
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, height: 1.2),
               ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: TextField(
                 controller: _searchController,
-                onChanged: (v) => setState(() => _query = v),
+                onChanged: _onSearch,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'Search',
+                  hintText: 'Search artists',
                   hintStyle: const TextStyle(color: Color(0xFFB3B3B3)),
                   prefixIcon: const Icon(Icons.search, color: Color(0xFFB3B3B3)),
                   filled: true,
                   fillColor: const Color(0xFF242424),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 20,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 0.72,
-                ),
-                itemCount: _filtered.length,
-                itemBuilder: (context, i) {
-                  final artist = _filtered[i];
-                  final isSelected = selected.contains(artist.id);
-                  return _ArtistTile(
-                    artist: artist,
-                    isSelected: isSelected,
-                    onTap: () => prefs.toggleArtist(artist.id),
-                  );
-                },
-              ),
+              child: _searching || artists.isEmpty
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.musikAccent))
+                  : GridView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 20,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 0.72,
+                      ),
+                      itemCount: artists.length,
+                      itemBuilder: (context, i) {
+                        final artist = artists[i];
+                        final isSelected = selected.contains(artist);
+                        return _ArtistTile(
+                          name: artist,
+                          isSelected: isSelected,
+                          onTap: () => prefs.toggleArtist(artist),
+                        );
+                      },
+                    ),
             ),
             if (canContinue)
               Padding(
@@ -131,12 +156,12 @@ class _ChooseArtistsScreenState extends State<ChooseArtistsScreen> {
 }
 
 class _ArtistTile extends StatelessWidget {
-  final ArtistItem artist;
+  final String name;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _ArtistTile({
-    required this.artist,
+    required this.name,
     required this.isSelected,
     required this.onTap,
   });
@@ -154,17 +179,15 @@ class _ArtistTile extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: artist.color,
-                    border: isSelected
-                        ? Border.all(color: AppColors.musikAccent, width: 3)
-                        : null,
+                    color: context.surfaceHighlight,
+                    border: isSelected ? Border.all(color: AppColors.musikAccent, width: 3) : null,
                     boxShadow: isSelected
                         ? [BoxShadow(color: AppColors.musikAccent.withValues(alpha: 0.4), blurRadius: 12)]
                         : null,
                   ),
                   child: Center(
                     child: Text(
-                      artist.name[0],
+                      name.isEmpty ? '?' : name[0].toUpperCase(),
                       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white70),
                     ),
                   ),
@@ -175,10 +198,7 @@ class _ArtistTile extends StatelessWidget {
                     right: 4,
                     child: Container(
                       padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: AppColors.musikAccent,
-                        shape: BoxShape.circle,
-                      ),
+                      decoration: const BoxDecoration(color: AppColors.musikAccent, shape: BoxShape.circle),
                       child: const Icon(Icons.check, size: 16, color: Colors.black),
                     ),
                   ),
@@ -187,7 +207,7 @@ class _ArtistTile extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            artist.name,
+            name,
             maxLines: 2,
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
@@ -202,3 +222,5 @@ class _ArtistTile extends StatelessWidget {
     );
   }
 }
+
+

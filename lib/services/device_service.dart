@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 
 class AudioDevice {
@@ -9,25 +11,48 @@ class AudioDevice {
 }
 
 class DeviceService extends ChangeNotifier {
-  static const devices = [
-    AudioDevice(id: 'beatspill', name: 'BeatsPill+', icon: 'speaker'),
-    AudioDevice(id: 'bravia', name: 'BRAVIA 4K GB', icon: 'tv'),
-    AudioDevice(id: 'macbook', name: "Momitha's MacBook Pro", icon: 'laptop'),
-  ];
-
-  String _activeDeviceId = 'beatspill';
+  late final AudioDevice _localDevice = _buildLocalDevice();
   double _volume = 0.72;
 
-  String get activeDeviceId => _activeDeviceId;
+  List<AudioDevice> get devices => [_localDevice];
+  String get activeDeviceId => _localDevice.id;
   double get volume => _volume;
 
-  AudioDevice get activeDevice =>
-      devices.firstWhere((d) => d.id == _activeDeviceId, orElse: () => devices.first);
-
+  AudioDevice get activeDevice => _localDevice;
   String get activeDeviceLabel => activeDevice.name;
 
+  AudioDevice _buildLocalDevice() {
+    final platform = kIsWeb
+        ? 'Web player'
+        : Platform.isAndroid
+            ? 'Android device'
+            : Platform.isWindows
+                ? 'Windows PC'
+                : Platform.isIOS
+                    ? 'iPhone'
+                    : Platform.operatingSystem;
+
+    String host = '';
+    if (!kIsWeb) {
+      try {
+        host = Platform.localHostname.trim();
+      } catch (_) {
+        host = '';
+      }
+    }
+
+    return AudioDevice(
+      id: 'local-output',
+      name: host.isEmpty ? platform : host,
+      icon: kIsWeb || Platform.isAndroid || Platform.isIOS ? 'phone' : 'computer',
+    );
+  }
+
+  void refreshDevices() {
+    notifyListeners();
+  }
+
   void selectDevice(String id) {
-    _activeDeviceId = id;
     notifyListeners();
   }
 

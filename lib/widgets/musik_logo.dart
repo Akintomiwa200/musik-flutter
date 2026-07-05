@@ -37,7 +37,7 @@ class MusikAppIcon extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: context.background,
         borderRadius: BorderRadius.circular(size * 0.22),
         border: Border.all(color: AppColors.musikAccent.withValues(alpha: 0.5), width: 1.5),
       ),
@@ -75,3 +75,5 @@ class _MusikLogoPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+

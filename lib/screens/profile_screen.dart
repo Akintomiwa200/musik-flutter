@@ -8,7 +8,8 @@ import '../theme/app_theme.dart';
 import 'playlist_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  final bool isTab;
+  const ProfileScreen({super.key, this.isTab = false});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +24,7 @@ class ProfileScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.background,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -40,11 +41,13 @@ class ProfileScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Spacer(),
+                    if (!isTab)
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    if (isTab) const Spacer(),
+                    if (!isTab) const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.settings_outlined),
                       onPressed: () => AppRoutes.settings(context),
@@ -55,16 +58,16 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 8),
               CircleAvatar(
                 radius: 48,
-                backgroundColor: AppColors.musikAccent,
+                backgroundColor: context.accent,
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : '?',
-                  style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Colors.black),
+                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onPrimary),
                 ),
               ),
               const SizedBox(height: 16),
               Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              Text(user?.email ?? '', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              Text(user?.email ?? '', style: TextStyle(color: context.textSecondary, fontSize: 13)),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -85,7 +88,7 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Expanded(
                 child: chart.isEmpty
-                    ? const Center(child: CircularProgressIndicator(color: AppColors.musikAccent))
+                    ? Center(child: CircularProgressIndicator(color: context.accent))
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         itemCount: playlists.length,
@@ -99,11 +102,11 @@ class ProfileScreen extends StatelessWidget {
                                 color: color,
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Icon(Icons.queue_music, color: Colors.white70),
+                              child: Icon(Icons.queue_music, color: context.textSecondary),
                             ),
                             title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            subtitle: Text('${tracks.length} songs', style: const TextStyle(color: AppColors.textSecondary)),
-                            trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                            subtitle: Text('${tracks.length} songs', style: TextStyle(color: context.textSecondary)),
+                            trailing: Icon(Icons.chevron_right, color: context.textSecondary),
                             onTap: () {
                               if (tracks.isEmpty) return;
                               Navigator.of(context).push(
@@ -112,7 +115,7 @@ class ProfileScreen extends StatelessWidget {
                                     title: title,
                                     subtitle: 'Playlist • $name',
                                     gradientTop: color,
-                                    gradientBottom: AppColors.background,
+                                    gradientBottom: context.background,
                                     tracks: tracks,
                                   ),
                                 ),
@@ -142,8 +145,10 @@ class _StatColumn extends StatelessWidget {
       children: [
         Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        Text(label, style: TextStyle(color: context.textSecondary, fontSize: 12)),
       ],
     );
   }
 }
+
+

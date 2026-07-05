@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/sample_content.dart';
 import '../models/catalog_album.dart';
 import '../models/track.dart';
 import '../navigation/app_routes.dart';
 import '../services/app_navigation_service.dart';
 import '../services/audio_player_service.dart';
-import '../services/auth_service.dart';
 import '../services/deezer_api_service.dart';
+import '../services/library_service.dart';
 import '../services/preferences_service.dart';
 import '../services/usb_music_service.dart';
 import '../theme/app_theme.dart';
@@ -37,22 +36,12 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadCatalog());
   }
 
-  String? _artistNameForId(String id) {
-    for (final artist in SampleContent.artists) {
-      if (artist.id == id) return artist.name;
-    }
-    return null;
-  }
-
   Future<void> _loadCatalog() async {
     final deezer = context.read<DeezerApiService>();
     final prefs = context.read<PreferencesService>();
     await deezer.fetchHomeCatalog();
 
-    final artistNames = prefs.selectedArtists
-        .map(_artistNameForId)
-        .whereType<String>()
-        .toList();
+    final artistNames = prefs.selectedArtists.toList();
     if (artistNames.isNotEmpty) {
       await deezer.fetchForYou(artistNames);
     }
@@ -74,14 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await Future.wait([_loadLocal(), _loadCatalog()]);
   }
 
-  void _openSettings() {
-    if (widget.onOpenSettings != null) {
-      widget.onOpenSettings!();
-    } else {
-      AppRoutes.settings(context);
-    }
-  }
-
   Future<void> _openCatalogAlbum(CatalogAlbum album) async {
     final deezer = context.read<DeezerApiService>();
     try {
@@ -95,7 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       AppRoutes.album(
         context,
-        album: AlbumBuilder.playlist(album.title, album.artist, tracks, color: AppColors.musikViolet),
+        album: AlbumBuilder.playlist(album.title, album.artist, tracks,
+            color: AppColors.musikViolet),
       );
     } catch (e) {
       if (mounted) {
@@ -106,57 +88,62 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  String _greeting(String? name) {
-    final hour = DateTime.now().hour;
-    final time = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    final who = (name != null && name.isNotEmpty) ? ', ${name.split(' ').first}' : '';
-    return '$time$who';
-  }
-
   @override
   Widget build(BuildContext context) {
     final deezer = context.watch<DeezerApiService>();
     final player = context.watch<AudioPlayerService>();
-    final user = context.watch<AuthService>().user;
-    final chart = deezer.chartTracks;
+    final library = context.watch<LibraryService>();
+    final chart = library.visibleTracks(deezer.chartTracks);
     final albums = deezer.chartAlbums;
-    final forYou = deezer.forYouTracks;
-    final recent = player.playHistory;
+    final forYou = library.visibleTracks(deezer.forYouTracks);
+    final recent = library.visibleTracks(player.playHistory);
 
     final initialLoading = deezer.loading && chart.isEmpty;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.background,
       body: SafeArea(
         child: initialLoading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.musikAccent))
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.musikAccent))
             : RefreshIndicator(
                 onRefresh: _refresh,
                 color: AppColors.musikAccent,
-                backgroundColor: AppColors.surfaceElevated,
+                backgroundColor: context.surfaceElevated,
                 child: CustomScrollView(
                   slivers: [
                     SliverAppBar(
                       floating: true,
                       pinned: true,
-                      backgroundColor: AppColors.background,
+                      backgroundColor: context.background,
                       elevation: 0,
                       leading: const Padding(
-                        padding: EdgeInsets.all(10),
+                        padding: EdgeInsets.all(12),
                         child: MusikAppIcon(size: 36),
                       ),
                       leadingWidth: 56,
-                      title: Text(
-                        _greeting(user?.name),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      title: const Text(
+                        'Music App',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w800),
                       ),
                       actions: [
-                        IconButton(
-                          icon: const Icon(Icons.search),
-                          onPressed: () => context.read<AppNavigationService>().openSearchTab(),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border:
+                                  Border.all(color: context.surfaceHighlight),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.search, size: 22),
+                              onPressed: () => context
+                                  .read<AppNavigationService>()
+                                  .openSearchTab(),
+                            ),
+                          ),
                         ),
-                        IconButton(icon: const Icon(Icons.settings_outlined), onPressed: _openSettings),
-                        const SizedBox(width: 4),
                       ],
                     ),
                     if (deezer.error != null && chart.isEmpty)
@@ -173,7 +160,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       SliverToBoxAdapter(
                         child: _HeroTrackCard(
                           track: chart.first,
-                          onPlay: () => player.playTrack(chart.first, queue: chart, index: 0),
+                          onPlay: () => player.playTrack(chart.first,
+                              queue: chart, index: 0),
                         ),
                       ),
                     if (recent.isNotEmpty) ...[
@@ -189,7 +177,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               final track = recent[i];
                               return _ChartTrackCard(
                                 track: track,
-                                onTap: () => player.playTrack(track, queue: recent, index: i),
+                                onTap: () => player.playTrack(track,
+                                    queue: recent, index: i),
                               );
                             },
                           ),
@@ -197,10 +186,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                     if (chart.isNotEmpty) ...[
-                      const _SectionTitle('Top tracks'),
+                      const _SectionTitle('New Releases'),
                       SliverToBoxAdapter(
                         child: SizedBox(
-                          height: 200,
+                          height: 128,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -209,7 +198,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               final track = chart[i];
                               return _ChartTrackCard(
                                 track: track,
-                                onTap: () => player.playTrack(track, queue: chart, index: i),
+                                onTap: () => player.playTrack(track,
+                                    queue: chart, index: i),
                                 onLongPress: () => AppRoutes.album(
                                   context,
                                   album: AlbumBuilder.fromTrack(track, chart),
@@ -221,17 +211,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                     if (albums.isNotEmpty) ...[
-                      const _SectionTitle('Trending albums'),
+                      const _SectionTitle('Artists'),
                       SliverToBoxAdapter(
                         child: SizedBox(
-                          height: 200,
+                          height: 128,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             itemCount: albums.length,
                             itemBuilder: (_, i) {
                               final album = albums[i];
-                              return _AlbumCard(
+                              return _ArtistCard(
                                 album: album,
                                 onTap: () => _openCatalogAlbum(album),
                               );
@@ -241,10 +231,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                     if (forYou.isNotEmpty) ...[
-                      const _SectionTitle('Based on your artists'),
+                      const _SectionTitle('Top Music'),
                       SliverToBoxAdapter(
                         child: SizedBox(
-                          height: 200,
+                          height: 128,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -253,14 +243,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               final track = forYou[i];
                               return _ChartTrackCard(
                                 track: track,
-                                onTap: () => player.playTrack(track, queue: forYou, index: i),
+                                onTap: () => player.playTrack(track,
+                                    queue: forYou, index: i),
                               );
                             },
                           ),
                         ),
                       ),
                     ],
-                    const _SectionTitle('Quick access'),
+                    const _SectionTitle('Your music'),
                     SliverToBoxAdapter(
                       child: SizedBox(
                         height: 88,
@@ -268,34 +259,49 @@ class _HomeScreenState extends State<HomeScreen> {
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           children: [
-                            if (chart.isNotEmpty)
-                              _QuickChip(
-                                label: 'Play chart',
-                                color: AppColors.musikAccent,
-                                icon: Icons.play_arrow,
-                                onTap: () => player.playTrack(chart.first, queue: chart, index: 0),
+                            if (library.likedTracks.isNotEmpty)
+                              _HomeActionChip(
+                                label: 'Liked songs',
+                                color: AppColors.musikViolet,
+                                icon: Icons.favorite,
+                                onTap: () => player.playTrack(
+                                  library.likedTracks.first,
+                                  queue: library.likedTracks,
+                                  index: 0,
+                                ),
                               ),
-                            _QuickChip(
-                              label: 'USB music',
+                            if (recent.isNotEmpty)
+                              _HomeActionChip(
+                                label: 'Recently played',
+                                color: AppColors.musikAccent,
+                                icon: Icons.history,
+                                onTap: () => player.playTrack(recent.first,
+                                    queue: recent, index: 0),
+                              ),
+                            if (_localTracks.isNotEmpty)
+                              _HomeActionChip(
+                                label: 'Local files',
+                                color: const Color(0xFF477D95),
+                                icon: Icons.audio_file,
+                                onTap: () {
+                                  player.playTrack(_localTracks.first,
+                                      queue: _localTracks, index: 0);
+                                },
+                              ),
+                            _HomeActionChip(
+                              label: 'USB library',
                               color: AppColors.musikSecondary,
                               icon: Icons.usb,
                               onTap: () => AppRoutes.usb(context),
                             ),
-                            _QuickChip(
-                              label: 'Search',
-                              color: AppColors.musikViolet,
+                            _HomeActionChip(
+                              label: 'Find music',
+                              color: context.surfaceHighlight,
                               icon: Icons.search,
-                              onTap: () => context.read<AppNavigationService>().openSearchTab(),
+                              onTap: () => context
+                                  .read<AppNavigationService>()
+                                  .openSearchTab(),
                             ),
-                            if (_localTracks.isNotEmpty)
-                              _QuickChip(
-                                label: 'Your files',
-                                color: const Color(0xFF477D95),
-                                icon: Icons.audio_file,
-                                onTap: () {
-                                  player.playTrack(_localTracks.first, queue: _localTracks, index: 0);
-                                },
-                              ),
                           ],
                         ),
                       ),
@@ -306,16 +312,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         delegate: SliverChildBuilderDelegate(
                           (context, i) {
                             final track = _localTracks[i];
-                            final playing = player.currentTrack?.id == track.id && player.isPlaying;
+                            final playing =
+                                player.currentTrack?.id == track.id &&
+                                    player.isPlaying;
                             return ListTile(
-                              leading: TrackCover(track: track, size: 48, borderRadius: 6),
-                              title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                              leading: TrackCover(
+                                  track: track, size: 48, borderRadius: 6),
+                              title: Text(track.title,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
                               subtitle: Text(track.artist),
                               trailing: Icon(
-                                playing ? Icons.equalizer : Icons.play_circle_outline,
+                                playing
+                                    ? Icons.equalizer
+                                    : Icons.play_circle_outline,
                                 color: AppColors.musikAccent,
                               ),
-                              onTap: () => player.playTrack(track, queue: _localTracks, index: i),
+                              onTap: () => player.playTrack(track,
+                                  queue: _localTracks, index: i),
                             );
                           },
                           childCount: _localTracks.length.clamp(0, 10),
@@ -329,10 +342,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: OutlinedButton.icon(
                             onPressed: () => AppRoutes.usb(context),
                             icon: const Icon(Icons.usb),
-                            label: const Text('Import music from USB or storage'),
+                            label:
+                                const Text('Import music from USB or storage'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.musikAccent,
-                              side: const BorderSide(color: AppColors.musikAccent),
+                              side: const BorderSide(
+                                  color: AppColors.musikAccent),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                           ),
@@ -357,8 +372,23 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-        child: Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+        child: Row(
+          children: [
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            const Spacer(),
+            const Text(
+              'See All',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.musikAccent,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -380,61 +410,78 @@ class _HeroTrackCard extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: SizedBox(
-            height: 180,
+            height: 100,
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (cover != null && cover.isNotEmpty)
-                  Image.network(cover, fit: BoxFit.cover)
-                else
-                  Container(color: AppColors.musikViolet),
                 Container(
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.85)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        AppColors.musikAccent,
+                        AppColors.musikViolet,
+                      ],
                     ),
                   ),
                 ),
+                Positioned.fill(
+                  child: CustomPaint(painter: _WaveformBackdropPainter()),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  top: 0,
+                  width: 124,
+                  child: cover != null && cover.isNotEmpty
+                      ? Image.network(
+                          cover,
+                          fit: BoxFit.cover,
+                          color: Colors.white.withValues(alpha: 0.25),
+                          colorBlendMode: BlendMode.screen,
+                        )
+                      : Icon(Icons.headphones,
+                          size: 84,
+                          color: Colors.white.withValues(alpha: 0.28)),
+                ),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(14, 12, 120, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.musikAccent,
-                          borderRadius: BorderRadius.circular(20),
+                      const Text(
+                        'TRY FREE TRIAL',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white70,
+                          letterSpacing: 1.6,
+                          fontWeight: FontWeight.w800,
                         ),
-                        child: const Text(
-                          '#1 RIGHT NOW',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black),
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        track.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        track.artist,
-                        style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                      const Text(
+                        '30-Day Free Trial\nOnly For You!',
+                        maxLines: 2,
+                        style: TextStyle(
+                            fontSize: 16,
+                            height: 1.05,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900),
                       ),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
+                      const Spacer(),
+                      FilledButton(
                         onPressed: onPlay,
-                        icon: const Icon(Icons.play_arrow, size: 22),
-                        label: const Text('Play full song'),
                         style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.musikAccent,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          backgroundColor: AppColors.musikLime,
+                          foregroundColor: context.textPrimary,
+                          minimumSize: const Size(74, 24),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 0),
+                          textStyle: const TextStyle(
+                              fontSize: 10, fontWeight: FontWeight.w900),
                         ),
+                        child: const Text('Play Now'),
                       ),
                     ],
                   ),
@@ -448,13 +495,13 @@ class _HeroTrackCard extends StatelessWidget {
   }
 }
 
-class _QuickChip extends StatelessWidget {
+class _HomeActionChip extends StatelessWidget {
   final String label;
   final Color color;
   final IconData icon;
   final VoidCallback onTap;
 
-  const _QuickChip({
+  const _HomeActionChip({
     required this.label,
     required this.color,
     required this.icon,
@@ -466,7 +513,7 @@ class _QuickChip extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Material(
-        color: AppColors.surfaceElevated,
+        color: context.surfaceElevated,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
@@ -480,7 +527,8 @@ class _QuickChip extends StatelessWidget {
                   height: 56,
                   decoration: BoxDecoration(
                     color: color,
-                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                    borderRadius:
+                        const BorderRadius.horizontal(left: Radius.circular(8)),
                   ),
                   child: Icon(icon, color: Colors.white),
                 ),
@@ -490,7 +538,8 @@ class _QuickChip extends StatelessWidget {
                     label,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -507,7 +556,8 @@ class _ChartTrackCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
-  const _ChartTrackCard({required this.track, required this.onTap, this.onLongPress});
+  const _ChartTrackCard(
+      {required this.track, required this.onTap, this.onLongPress});
 
   @override
   Widget build(BuildContext context) {
@@ -517,14 +567,37 @@ class _ChartTrackCard extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         child: SizedBox(
-          width: 140,
+          width: 82,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: TrackCover(track: track, size: 140, borderRadius: 8)),
-              const SizedBox(height: 8),
-              Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              Text(track.artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  TrackCover(track: track, size: 82, borderRadius: 8),
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.34),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.play_arrow,
+                        color: Colors.white, size: 18),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w800)),
+              Text(track.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 10, color: context.textSecondary)),
             ],
           ),
         ),
@@ -533,40 +606,66 @@ class _ChartTrackCard extends StatelessWidget {
   }
 }
 
-class _AlbumCard extends StatelessWidget {
+class _ArtistCard extends StatelessWidget {
   final CatalogAlbum album;
   final VoidCallback onTap;
 
-  const _AlbumCard({required this.album, required this.onTap});
+  const _ArtistCard({required this.album, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.only(right: 16),
       child: GestureDetector(
         onTap: onTap,
         child: SizedBox(
-          width: 140,
+          width: 82,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: album.coverUrl.isNotEmpty
-                      ? Image.network(album.coverUrl, width: 140, fit: BoxFit.cover)
-                      : Container(color: AppColors.surfaceElevated),
-                ),
+              ClipOval(
+                child: album.coverUrl.isNotEmpty
+                    ? Image.network(album.coverUrl,
+                        width: 82, height: 82, fit: BoxFit.cover)
+                    : Container(
+                        width: 82,
+                        height: 82,
+                        color: context.surfaceElevated),
               ),
               const SizedBox(height: 8),
-              Text(album.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              Text(album.artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              Text(
+                album.artist,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+class _WaveformBackdropPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.45)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    final startX = size.width * 0.58;
+    for (var i = 0; i < 24; i++) {
+      final x = startX + i * 4.4;
+      final h = 10 + ((i * 7) % 28).toDouble();
+      canvas.drawLine(Offset(x, (size.height - h) / 2),
+          Offset(x, (size.height + h) / 2), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ErrorBanner extends StatelessWidget {
@@ -580,9 +679,10 @@ class _ErrorBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: context.surfaceElevated,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.musikSecondary.withValues(alpha: 0.5)),
+        border:
+            Border.all(color: AppColors.musikSecondary.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -595,3 +695,5 @@ class _ErrorBanner extends StatelessWidget {
     );
   }
 }
+
+

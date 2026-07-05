@@ -3,12 +3,15 @@ import 'package:provider/provider.dart';
 
 import '../models/track.dart';
 import '../services/audio_player_service.dart';
+import '../services/app_navigation_service.dart';
 import '../services/device_service.dart';
+import '../services/library_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/mini_player_bar.dart';
 import '../widgets/sheets/device_picker_sheet.dart';
 import '../widgets/sheets/music_sheets.dart';
 import 'now_playing_screen.dart';
+import 'share_screen.dart';
 
 class PlaylistScreen extends StatefulWidget {
   final String title;
@@ -42,8 +45,9 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
   }
 
   List<Track> get _filtered {
-    if (_query.isEmpty) return widget.tracks;
-    return widget.tracks
+    final tracks = context.read<LibraryService>().visibleTracks(widget.tracks);
+    if (_query.isEmpty) return tracks;
+    return tracks
         .where((t) =>
             t.title.toLowerCase().contains(_query.toLowerCase()) ||
             t.artist.toLowerCase().contains(_query.toLowerCase()))
@@ -62,14 +66,14 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
     final filtered = _filtered;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.background,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [widget.gradientTop, Colors.black],
-            stops: const [0.0, 0.45],
+            colors: [widget.gradientTop, context.background],
+            stops: [0.0, 0.45],
           ),
         ),
         child: SafeArea(
@@ -80,20 +84,20 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: Icon(Icons.arrow_back, color: context.textPrimary),
                       onPressed: () => Navigator.pop(context),
                     ),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
                         onChanged: (v) => setState(() => _query = v),
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style: TextStyle(color: context.textPrimary, fontSize: 14),
                         decoration: InputDecoration(
                           hintText: 'Find in playlist',
-                          hintStyle: const TextStyle(color: Color(0xFFB3B3B3)),
-                          prefixIcon: const Icon(Icons.search, color: Color(0xFFB3B3B3), size: 22),
+                          hintStyle: TextStyle(color: context.textSecondary),
+                          prefixIcon: Icon(Icons.search, color: context.textSecondary, size: 22),
                           filled: true,
-                          fillColor: Colors.white.withValues(alpha: 0.12),
+                          fillColor: context.surfaceHighlight,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide.none,
@@ -143,7 +147,7 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                           const SizedBox(height: 6),
                           Text(
                             widget.subtitle,
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                            style: TextStyle(color: context.textSecondary, fontSize: 13),
                           ),
                         ],
                       ),
@@ -161,7 +165,48 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                           color: AppColors.musikAccent,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.play_arrow, color: Colors.black, size: 32),
+                        child: Icon(Icons.play_arrow, color: Theme.of(context).colorScheme.onPrimary, size: 32),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: filtered.isEmpty
+                          ? null
+                          : () {
+                              player.setRepeatSetting(RepeatSetting.off);
+                              player.playTrack(filtered.first, queue: [filtered.first], index: 0);
+                            },
+                      icon: const Icon(Icons.play_arrow, size: 18),
+                      label: const Text('Play one'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: filtered.isEmpty
+                          ? null
+                          : () {
+                              player.setRepeatSetting(RepeatSetting.off);
+                              player.playTrack(filtered.first, queue: filtered, index: 0);
+                            },
+                      icon: const Icon(Icons.queue_music, size: 18),
+                      label: const Text('Play all'),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: filtered.isEmpty
+                            ? null
+                            : () {
+                                player.setRepeatSetting(RepeatSetting.all);
+                                player.playTrack(filtered.first, queue: filtered, index: 0);
+                              },
+                        icon: const Icon(Icons.repeat, size: 18),
+                        label: const Text('Repeat all', overflow: TextOverflow.ellipsis),
                       ),
                     ),
                   ],
@@ -180,19 +225,25 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: isPlaying ? AppColors.musikAccent : Colors.white,
+                          color: isPlaying ? context.accent : context.textPrimary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      subtitle: Text(track.artist, style: const TextStyle(color: AppColors.textSecondary)),
+                      subtitle: Text(track.artist, style: TextStyle(color: context.textSecondary)),
                       trailing: IconButton(
-                        icon: const Icon(Icons.more_horiz, color: AppColors.textSecondary),
+                        icon: Icon(Icons.more_horiz, color: context.textSecondary),
                         onPressed: () => showTrackOptionsSheet(
                           context,
+                          track: track,
                           albumTitle: widget.title,
                           artist: track.artist,
                           trackTitle: track.title,
-                          onShare: () {},
+                          onShare: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ShareScreen(title: track.title, artist: track.artist),
+                            ),
+                          ),
+                          onViewArtist: () => context.read<AppNavigationService>().openSearchTab(track.artist),
                         ),
                       ),
                       onTap: () => player.playTrack(track, queue: filtered, index: i),
@@ -229,3 +280,5 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
     );
   }
 }
+
+

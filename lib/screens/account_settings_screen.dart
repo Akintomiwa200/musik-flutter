@@ -13,23 +13,23 @@ class AccountSettingsScreen extends StatelessWidget {
     final user = context.watch<AuthService>().user;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.background,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('Account'),
+        backgroundColor: context.background,
+        title: Text('Account', style: TextStyle(color: context.textPrimary)),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           ListTile(
-            tileColor: AppColors.surfaceElevated,
+            tileColor: context.surfaceElevated,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             title: const Text('Email'),
             subtitle: Text(user?.email ?? ''),
           ),
           const SizedBox(height: 8),
           ListTile(
-            tileColor: AppColors.surfaceElevated,
+            tileColor: context.surfaceElevated,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             title: const Text('Name'),
             subtitle: Text(user?.name ?? ''),
@@ -51,3 +51,5 @@ class AccountSettingsScreen extends StatelessWidget {
     );
   }
 }
+
+

@@ -72,7 +72,7 @@ class MiniPlayerBar extends StatelessWidget {
                             artist,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            style: TextStyle(fontSize: 11, color: context.textSecondary),
                           ),
                           if (deviceLabel != null) ...[
                             const SizedBox(height: 2),
@@ -123,3 +123,5 @@ class MiniPlayerBar extends StatelessWidget {
     );
   }
 }
+
+

@@ -5,6 +5,8 @@ class UserProfile {
   final String gender;
   final bool marketingNews;
   final bool marketingShare;
+  final String provider;
+  final String? photoUrl;
 
   const UserProfile({
     required this.email,
@@ -13,6 +15,8 @@ class UserProfile {
     required this.gender,
     this.marketingNews = false,
     this.marketingShare = false,
+    this.provider = 'email',
+    this.photoUrl,
   });
 
   Map<String, dynamic> toJson() => {
@@ -22,6 +26,8 @@ class UserProfile {
         'gender': gender,
         'marketingNews': marketingNews,
         'marketingShare': marketingShare,
+        'provider': provider,
+        'photoUrl': photoUrl,
       };
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -32,6 +38,8 @@ class UserProfile {
       gender: json['gender'] as String? ?? '',
       marketingNews: json['marketingNews'] as bool? ?? false,
       marketingShare: json['marketingShare'] as bool? ?? false,
+      provider: json['provider'] as String? ?? 'email',
+      photoUrl: json['photoUrl'] as String?,
     );
   }
 }

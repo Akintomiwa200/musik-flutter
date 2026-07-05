@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../navigation/app_routes.dart';
 import '../../services/device_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -21,6 +22,10 @@ class _DevicePickerBody extends StatelessWidget {
 
   IconData _iconFor(String icon) {
     switch (icon) {
+      case 'computer':
+        return Icons.computer;
+      case 'phone':
+        return Icons.smartphone;
       case 'tv':
         return Icons.tv;
       case 'laptop':
@@ -51,7 +56,7 @@ class _DevicePickerBody extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.surfaceHighlight.withValues(alpha: 0.5),
+                color: context.surfaceHighlight.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -69,9 +74,20 @@ class _DevicePickerBody extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Connect to a device', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Available outputs', style: TextStyle(color: context.textSecondary, fontSize: 13)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 20),
+                  tooltip: 'Refresh outputs',
+                  onPressed: devices.refreshDevices,
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
-            for (final device in DeviceService.devices)
+            for (final device in devices.devices)
               if (device.id != devices.activeDeviceId)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -82,6 +98,14 @@ class _DevicePickerBody extends StatelessWidget {
                     Navigator.pop(context);
                   },
                 ),
+            if (devices.devices.length == 1)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No external audio outputs are exposed by this device right now.',
+                  style: TextStyle(color: context.textSecondary, fontSize: 13),
+                ),
+              ),
             const SizedBox(height: 16),
             const Divider(color: Color(0xFF3E3E3E)),
             const SizedBox(height: 12),
@@ -90,9 +114,9 @@ class _DevicePickerBody extends StatelessWidget {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Listen together with friends, wherever they are.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(color: context.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -108,8 +132,11 @@ class _DevicePickerBody extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () {},
-              child: const Text('Scan to join', style: TextStyle(color: AppColors.textSecondary)),
+              onPressed: () {
+                Navigator.pop(context);
+                AppRoutes.scanner(context);
+              },
+              child: Text('Scan to join', style: TextStyle(color: context.textSecondary)),
             ),
             const SizedBox(height: 8),
             Row(
@@ -132,3 +159,5 @@ class _DevicePickerBody extends StatelessWidget {
     );
   }
 }
+
+

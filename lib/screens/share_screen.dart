@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/sheets/music_sheets.dart';
@@ -12,6 +14,27 @@ class ShareScreen extends StatelessWidget {
     required this.title,
     required this.artist,
   });
+
+  String get _shareUrl => musikShareUrl('track', '$artist $title');
+  String get _shareText => 'Listen to "$title" by $artist on Musik: $_shareUrl';
+
+  Future<void> _copy(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: _shareUrl));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link copied'), duration: Duration(seconds: 2)),
+      );
+    }
+  }
+
+  Future<void> _launchShare(BuildContext context, Uri uri) async {
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No app found to complete sharing')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +71,7 @@ class ShareScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               artist,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
+              style: TextStyle(color: context.textSecondary, fontSize: 16),
             ),
             const Spacer(),
             Padding(
@@ -59,26 +82,42 @@ class ShareScreen extends StatelessWidget {
                   _ShareAction(
                     label: 'Copy\nLink',
                     icon: Icons.link,
-                    onTap: () => copyTrackLink(context, title),
+                    onTap: () => _copy(context),
                   ),
                   _ShareAction(
                     label: 'WhatsApp',
                     icon: Icons.chat,
                     color: const Color(0xFF25D366),
+                    onTap: () => _launchShare(
+                      context,
+                      Uri.parse('https://wa.me/?text=${Uri.encodeComponent(_shareText)}'),
+                    ),
                   ),
                   _ShareAction(
                     label: 'Twitter',
                     icon: Icons.tag,
                     color: const Color(0xFF1DA1F2),
+                    onTap: () => _launchShare(
+                      context,
+                      Uri.parse('https://twitter.com/intent/tweet?text=${Uri.encodeComponent(_shareText)}'),
+                    ),
                   ),
                   _ShareAction(
                     label: 'Messages',
                     icon: Icons.message_outlined,
                     color: const Color(0xFF34C759),
+                    onTap: () => _launchShare(
+                      context,
+                      Uri.parse('sms:?body=${Uri.encodeComponent(_shareText)}'),
+                    ),
                   ),
                   _ShareAction(
                     label: 'More',
                     icon: Icons.more_horiz,
+                    onTap: () => _launchShare(
+                      context,
+                      Uri.parse('mailto:?subject=${Uri.encodeComponent(title)}&body=${Uri.encodeComponent(_shareText)}'),
+                    ),
                   ),
                 ],
               ),
@@ -106,18 +145,14 @@ class _ShareAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap ?? () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label sharing coming soon')),
-        );
-      },
+      onTap: onTap,
       child: Column(
         children: [
           Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: color ?? AppColors.surfaceElevated,
+              color: color ?? context.surfaceElevated,
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white),
@@ -126,10 +161,12 @@ class _ShareAction extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 11, color: context.textSecondary),
           ),
         ],
       ),
     );
   }
 }
+
+

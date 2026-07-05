@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/sample_albums.dart';
 import '../models/album.dart';
 import '../screens/account_settings_screen.dart';
 import '../screens/album_screen.dart';
@@ -38,4 +37,9 @@ class AppRoutes {
       push(context, ShareScreen(title: title, artist: artist));
   static void nowPlaying(BuildContext context, {Album? album}) =>
       push(context, NowPlayingScreen(album: album));
+  static void premium(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Premium coming soon')),
+    );
+  }
 }

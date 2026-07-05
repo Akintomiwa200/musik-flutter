@@ -92,7 +92,7 @@ class _StorageSettingsScreenState extends State<StorageSettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           ListTile(
-            tileColor: AppColors.surfaceElevated,
+            tileColor: context.surfaceElevated,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             leading: const Icon(Icons.usb),
             title: const Text('USB Music'),
@@ -105,7 +105,7 @@ class _StorageSettingsScreenState extends State<StorageSettingsScreen> {
             },
           ),
           const SizedBox(height: 24),
-          const Text('App version', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+          Text('App version', style: TextStyle(color: context.textSecondary, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Text(_version),
           const SizedBox(height: 16),
@@ -114,7 +114,7 @@ class _StorageSettingsScreenState extends State<StorageSettingsScreen> {
             decoration: InputDecoration(
               labelText: 'APK update manifest URL',
               filled: true,
-              fillColor: AppColors.surfaceElevated,
+              fillColor: context.surfaceElevated,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
             ),
           ),
@@ -158,3 +158,5 @@ class _StorageSettingsScreenState extends State<StorageSettingsScreen> {
     );
   }
 }
+
+

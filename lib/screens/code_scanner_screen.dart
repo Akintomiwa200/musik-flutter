@@ -49,7 +49,7 @@ class _CodeScannerScreenState extends State<CodeScannerScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.background,
       body: SafeArea(
         child: Stack(
           children: [
@@ -96,9 +96,9 @@ class _CodeScannerScreenState extends State<CodeScannerScreen>
                   },
                 ),
                 const SizedBox(height: 32),
-                const Text(
+                Text(
                   'Point at a Musik share code or album QR',
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: context.textSecondary),
                 ),
                 const Spacer(),
                 Padding(
@@ -133,3 +133,5 @@ class _CodeScannerScreenState extends State<CodeScannerScreen>
     );
   }
 }
+
+

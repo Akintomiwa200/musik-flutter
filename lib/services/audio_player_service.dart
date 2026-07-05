@@ -5,16 +5,23 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../models/track.dart';
+import 'download_service.dart';
+import 'notification_service.dart';
+import 'recommendation_service.dart';
 import 'stream_resolver_service.dart';
 
 enum PlaybackStatus { stopped, playing, paused, loading }
+enum RepeatSetting { off, all, one }
 
 class AudioPlayerService extends ChangeNotifier {
-  static const _streamHeaders = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Musik/1.0',
+  static Map<String, String> get _streamHeaders => {
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 14) Musik/1.0',
   };
 
   final StreamResolverService _resolver;
+  final RecommendationService _recommender;
+  final DownloadService _downloadService;
+  final NotificationService _notification;
   final AudioPlayer _player = AudioPlayer();
   Track? _currentTrack;
   List<Track> _queue = [];
@@ -22,18 +29,34 @@ class AudioPlayerService extends ChangeNotifier {
   int _queueIndex = 0;
   PlaybackStatus _state = PlaybackStatus.stopped;
   bool _shuffle = false;
-  bool _repeat = false;
+  RepeatSetting _repeatMode = RepeatSetting.off;
   bool _demoMode = false;
   bool _resolving = false;
   String? _lastError;
   Timer? _demoTimer;
+  Timer? _sleepTimer;
   Duration _demoPosition = Duration.zero;
   Duration _demoDuration = Duration.zero;
   final _demoPositionController = StreamController<Duration>.broadcast();
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<PlayerState>? _playerStateSub;
+  List<Track> _catalog = [];
 
-  AudioPlayerService(this._resolver);
+  AudioPlayerService(this._resolver, this._recommender, this._downloadService, this._notification);
+
+  void setCatalog(List<Track> tracks) {
+    _catalog = tracks;
+  }
+
+  void addTracksToCatalog(Iterable<Track> tracks) {
+    final existing = _catalog.map((t) => t.id).toSet();
+    for (final track in tracks) {
+      if (!existing.contains(track.id)) {
+        _catalog.add(track);
+        existing.add(track.id);
+      }
+    }
+  }
 
   Track? get currentTrack => _currentTrack;
   List<Track> get playHistory => List.unmodifiable(_playHistory);
@@ -41,7 +64,8 @@ class AudioPlayerService extends ChangeNotifier {
   int get queueIndex => _queueIndex;
   PlaybackStatus get state => _state;
   bool get shuffle => _shuffle;
-  bool get repeat => _repeat;
+  bool get repeat => _repeatMode != RepeatSetting.off;
+  RepeatSetting get repeatMode => _repeatMode;
   bool get isPlaying => _state == PlaybackStatus.playing;
   bool get isResolving => _resolving;
   String? get lastError => _lastError;
@@ -62,6 +86,27 @@ class AudioPlayerService extends ChangeNotifier {
     final moved = upcoming.removeAt(oldIndex);
     upcoming.insert(target, moved);
     _queue = [..._queue.sublist(0, start), ...upcoming];
+    notifyListeners();
+  }
+
+  Future<void> addToQueue(Track track) async {
+    if (_currentTrack == null) {
+      await playTrack(track, queue: [track], index: 0);
+      return;
+    }
+    _queue.add(track);
+    notifyListeners();
+  }
+
+  void setSleepTimer(Duration duration) {
+    _sleepTimer?.cancel();
+    _sleepTimer = Timer(duration, stop);
+    notifyListeners();
+  }
+
+  void cancelSleepTimer() {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
     notifyListeners();
   }
 
@@ -93,6 +138,8 @@ class AudioPlayerService extends ChangeNotifier {
       steps: 1,
       minPeriod: const Duration(milliseconds: 200),
     ).listen((_) => notifyListeners());
+
+    _notification.listen(this);
   }
 
   void _syncPlaybackStatus(PlayerState ps) {
@@ -108,7 +155,20 @@ class AudioPlayerService extends ChangeNotifier {
     } else {
       _state = PlaybackStatus.stopped;
     }
+    _updateNotification();
     notifyListeners();
+  }
+
+  void _updateNotification() {
+    if (_currentTrack == null || _state == PlaybackStatus.stopped) {
+      _notification.cancel();
+      return;
+    }
+    _notification.showNowPlaying(
+      _currentTrack!,
+      _state == PlaybackStatus.playing,
+      downloads: _downloadService,
+    );
   }
 
   void _recordPlay(Track track) {
@@ -121,14 +181,21 @@ class AudioPlayerService extends ChangeNotifier {
 
   Future<void> playTrack(Track track, {List<Track>? queue, int? index}) async {
     _lastError = null;
-    _currentTrack = track;
-    _recordPlay(track);
+
+    addTracksToCatalog([track]);
+    if (queue != null) addTracksToCatalog(queue);
+
+    final localPath = _downloadService.localPathFor(track.id);
+    final playable = localPath != null ? track.copyWith(filePath: localPath, source: 'local') : track;
+
+    _currentTrack = playable;
+    _recordPlay(playable);
     if (queue != null) {
       _queue = List.from(queue);
-      _queueIndex = index ?? _queue.indexWhere((t) => t.id == track.id);
+      _queueIndex = index ?? _queue.indexWhere((t) => t.id == playable.id);
       if (_queueIndex < 0) _queueIndex = 0;
     } else if (_queue.isEmpty) {
-      _queue = [track];
+      _queue = [playable];
       _queueIndex = 0;
     }
 
@@ -136,28 +203,30 @@ class AudioPlayerService extends ChangeNotifier {
     _resolving = false;
     notifyListeners();
 
-    if (track.hasLocalFile) {
-      await _playLocal(track);
+    if (playable.hasLocalFile) {
+      await _playLocal(playable);
       return;
     }
 
-    if (track.isDemo) {
+    if (playable.isDemo) {
       await _player.stop();
       _stopDemo();
-      await _startDemoPlayback(track);
+      await _startDemoPlayback(playable);
       return;
     }
 
-    if (track.isRemoteCatalog || track.isStream) {
-      await _playRemote(track);
+    if (playable.isRemoteCatalog || playable.isStream) {
+      await _playRemote(playable);
       return;
     }
 
-    if (track.filePath.isEmpty) {
+    if (playable.filePath.isEmpty) {
       await _player.stop();
       _stopDemo();
-      await _startDemoPlayback(track);
+      await _startDemoPlayback(playable);
     }
+
+    _updateNotification();
   }
 
   Future<void> _playLocal(Track track) async {
@@ -177,10 +246,11 @@ class AudioPlayerService extends ChangeNotifier {
   Future<void> _playRemote(Track track) async {
     _stopDemo();
     _resolving = true;
-    notifyListeners();
+    _state = PlaybackStatus.loading;
+    await _player.stop();
 
     try {
-      final resolved = await _resolver.resolve(track);
+      final resolved = await _resolver.resolve(track).timeout(const Duration(seconds: 15));
       final enriched = track.copyWith(
         streamUrl: resolved.url,
         duration: resolved.duration ?? track.duration,
@@ -205,14 +275,21 @@ class AudioPlayerService extends ChangeNotifier {
       await _player.play();
       _state = PlaybackStatus.playing;
       notifyListeners();
+    } on TimeoutException {
+      _resolving = false;
+      _lastError = 'Could not resolve stream — timed out. Try again.';
+      debugPrint(_lastError);
+      _state = PlaybackStatus.stopped;
+      notifyListeners();
     } on PlayerException catch (e) {
       _resolving = false;
       _lastError = 'Playback failed: ${e.message ?? e.code}';
       debugPrint('Remote play error: $e');
-      await _startDemoPlayback(track);
+      _state = PlaybackStatus.stopped;
+      notifyListeners();
     } catch (e) {
       _resolving = false;
-      _lastError = 'Could not load full song: $e';
+      _lastError = 'Could not load song: $e';
       debugPrint(_lastError);
       _state = PlaybackStatus.stopped;
       notifyListeners();
@@ -266,6 +343,7 @@ class AudioPlayerService extends ChangeNotifier {
     _stopDemo();
     await _player.stop();
     _state = PlaybackStatus.stopped;
+    _notification.cancel();
     notifyListeners();
   }
 
@@ -282,10 +360,13 @@ class AudioPlayerService extends ChangeNotifier {
   Future<void> skipNext() async {
     if (_queue.isEmpty) return;
     if (_shuffle) {
-      _queueIndex = (_queueIndex + 1 + _queue.length) % _queue.length;
-    } else {
-      _queueIndex = (_queueIndex + 1) % _queue.length;
+      final shuffled = _shuffledQueue();
+      final curIdx = shuffled.indexWhere((t) => t.id == _currentTrack?.id);
+      _queueIndex = (curIdx + 1) % shuffled.length;
+      await playTrack(shuffled[_queueIndex], queue: shuffled, index: _queueIndex);
+      return;
     }
+    _queueIndex = (_queueIndex + 1) % _queue.length;
     await playTrack(_queue[_queueIndex], queue: _queue, index: _queueIndex);
   }
 
@@ -305,13 +386,33 @@ class AudioPlayerService extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<Track> _shuffledQueue() {
+    final current = _queueIndex.clamp(0, _queue.length - 1);
+    final result = <Track>[];
+    result.add(_queue[current]);
+    final rest = List<Track>.from(_queue);
+    rest.removeAt(current);
+    rest.shuffle();
+    result.addAll(rest);
+    return result;
+  }
+
   void toggleRepeat() {
-    _repeat = !_repeat;
+    _repeatMode = switch (_repeatMode) {
+      RepeatSetting.off => RepeatSetting.all,
+      RepeatSetting.all => RepeatSetting.one,
+      RepeatSetting.one => RepeatSetting.off,
+    };
+    notifyListeners();
+  }
+
+  void setRepeatSetting(RepeatSetting mode) {
+    _repeatMode = mode;
     notifyListeners();
   }
 
   Future<void> _onTrackComplete() async {
-    if (_repeat && _currentTrack != null) {
+    if (_repeatMode == RepeatSetting.one && _currentTrack != null) {
       if (_demoMode) {
         _demoPosition = Duration.zero;
         _demoPositionController.add(_demoPosition);
@@ -323,16 +424,28 @@ class AudioPlayerService extends ChangeNotifier {
       await _player.play();
       return;
     }
-    if (_queueIndex < _queue.length - 1 || _repeat) {
+    if (_queueIndex < _queue.length - 1) {
       await skipNext();
+    } else if (_repeatMode == RepeatSetting.all && _queue.isNotEmpty) {
+      _queueIndex = 0;
+      await playTrack(_queue.first, queue: _queue, index: 0);
+    } else if (_currentTrack != null && _catalog.isNotEmpty) {
+      final similar = _recommender.similarTo(_currentTrack!, _catalog, count: 10);
+      if (similar.isNotEmpty) {
+        _queue.addAll(similar);
+        await skipNext();
+      } else {
+        _state = PlaybackStatus.stopped;
+        notifyListeners();
+      }
     } else {
       _state = PlaybackStatus.stopped;
       notifyListeners();
     }
   }
 
-  static AudioPlayerService create(StreamResolverService resolver) {
-    final service = AudioPlayerService(resolver);
+  static AudioPlayerService create(StreamResolverService resolver, DownloadService downloadService) {
+    final service = AudioPlayerService(resolver, RecommendationService(), downloadService, NotificationService());
     service._init();
     return service;
   }
@@ -340,6 +453,7 @@ class AudioPlayerService extends ChangeNotifier {
   @override
   void dispose() {
     _stopDemo();
+    _sleepTimer?.cancel();
     _positionSub?.cancel();
     _playerStateSub?.cancel();
     _demoPositionController.close();

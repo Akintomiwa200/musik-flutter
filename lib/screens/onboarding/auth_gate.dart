@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/preferences_service.dart';
-import '../../theme/app_theme.dart';
 import '../main_shell.dart';
-import 'choose_artists_screen.dart';
+import 'login_screen.dart';
+import 'splash_screen.dart';
 import 'welcome_screen.dart';
 
 class AuthGate extends StatefulWidget {
@@ -17,6 +17,7 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   bool _ready = false;
+  bool _splashDone = false;
 
   @override
   void initState() {
@@ -25,27 +26,26 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _load() async {
-    await context.read<AuthService>().loadSession();
-    await context.read<PreferencesService>().load();
+    final auth = context.read<AuthService>();
+    final prefs = context.read<PreferencesService>();
+    await Future.wait([
+      auth.loadSession(),
+      prefs.load(),
+      Future<void>.delayed(const Duration(milliseconds: 1400)),
+    ]);
     if (mounted) setState(() => _ready = true);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_ready) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.musikAccent),
-        ),
-      );
+    if (!_ready || !_splashDone) {
+      return SplashScreen(onFinished: () => setState(() => _splashDone = true));
     }
 
     final auth = context.watch<AuthService>();
-    if (!auth.isLoggedIn) return const WelcomeScreen();
-
-    final prefs = context.watch<PreferencesService>();
-    if (!prefs.tasteOnboardingComplete) return const ChooseArtistsScreen();
+    if (!auth.isLoggedIn) {
+      return auth.onboardingSeen ? const LoginScreen() : const WelcomeScreen();
+    }
 
     return const MainShell();
   }

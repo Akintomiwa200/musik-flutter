@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../models/album.dart';
 import '../models/track.dart';
 import '../services/audio_player_service.dart';
+import '../services/app_navigation_service.dart';
 import '../services/device_service.dart';
+import '../services/library_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/album_gradient_background.dart';
 import '../widgets/mini_player_bar.dart';
@@ -42,10 +44,12 @@ class AlbumScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<AudioPlayerService>();
+    final library = context.watch<LibraryService>();
     final currentId = player.currentTrack?.id;
+    final visibleTracks = library.visibleTracks(album.tracks);
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.background,
       body: AlbumGradientBackground(
         topColor: album.gradientTop,
         bottomColor: album.gradientBottom,
@@ -57,7 +61,7 @@ class AlbumScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: Icon(Icons.arrow_back, color: context.textPrimary),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -84,23 +88,27 @@ class AlbumScreen extends StatelessWidget {
                             const SizedBox(height: 8),
                             Text(
                               album.artist,
-                              style: const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                              style: TextStyle(fontSize: 15, color: context.textSecondary),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               album.subtitle,
-                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              style: TextStyle(fontSize: 13, color: context.textSecondary),
                             ),
                             const SizedBox(height: 20),
                             Row(
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.favorite_border),
-                                  onPressed: () {},
+                                  onPressed: () => library.likeAll(visibleTracks),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.download_outlined),
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Download uses local or USB files when available')),
+                                    );
+                                  },
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.more_horiz),
@@ -108,14 +116,16 @@ class AlbumScreen extends StatelessWidget {
                                     context,
                                     album: album,
                                     onShare: () => _openShare(context, album.title),
+                                    onViewArtist: () => context.read<AppNavigationService>().openSearchTab(album.artist),
                                     onGoToRadio: () => _openQueue(context),
                                   ),
                                 ),
                                 const Spacer(),
                                 GestureDetector(
                                   onTap: () {
-                                    final first = album.tracks.first;
-                                    player.playTrack(first, queue: album.tracks, index: 0);
+                                    if (visibleTracks.isEmpty) return;
+                                    final first = visibleTracks.first;
+                                    player.playTrack(first, queue: visibleTracks, index: 0);
                                   },
                                   child: Container(
                                     width: 56,
@@ -125,10 +135,10 @@ class AlbumScreen extends StatelessWidget {
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
-                                      player.isPlaying && album.tracks.any((t) => t.id == currentId)
+                                      player.isPlaying && visibleTracks.any((t) => t.id == currentId)
                                           ? Icons.pause
                                           : Icons.play_arrow,
-                                      color: Colors.black,
+                                      color: Theme.of(context).colorScheme.onPrimary,
                                       size: 32,
                                     ),
                                   ),
@@ -142,25 +152,27 @@ class AlbumScreen extends StatelessWidget {
                     SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, i) {
-                          final track = album.tracks[i];
+                          final track = visibleTracks[i];
                           final isPlaying = currentId == track.id;
                           return _AlbumTrackRow(
                             index: i + 1,
                             track: track,
                             isPlaying: isPlaying,
-                            onTap: () => player.playTrack(track, queue: album.tracks, index: i),
+                            onTap: () => player.playTrack(track, queue: visibleTracks, index: i),
                             onMore: () => showTrackOptionsSheet(
                               context,
+                              track: track,
                               albumTitle: album.title,
                               artist: album.artist,
                               trackTitle: track.title,
                               onShare: () => _openShare(context, track.title),
                               onViewAlbum: () {},
+                              onViewArtist: () => context.read<AppNavigationService>().openSearchTab(track.artist),
                               onGoToRadio: () => _openQueue(context),
                             ),
                           );
                         },
-                        childCount: album.tracks.length,
+                        childCount: visibleTracks.length,
                       ),
                     ),
                     const SliverPadding(padding: EdgeInsets.only(bottom: 16)),
@@ -225,8 +237,8 @@ class _AlbumTrackRow extends StatelessWidget {
             SizedBox(
               width: 24,
               child: isPlaying
-                  ? const Icon(Icons.graphic_eq, color: AppColors.musikAccent, size: 20)
-                  : Text('$index', style: const TextStyle(color: AppColors.textSecondary)),
+                  ? Icon(Icons.graphic_eq, color: context.accent, size: 20)
+                  : Text('$index', style: TextStyle(color: context.textSecondary)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -237,12 +249,12 @@ class _AlbumTrackRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: isPlaying ? FontWeight.w600 : FontWeight.w400,
-                  color: isPlaying ? AppColors.musikAccent : Colors.white,
+                  color: isPlaying ? context.accent : context.textPrimary,
                 ),
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.more_horiz, color: AppColors.textSecondary),
+              icon: Icon(Icons.more_horiz, color: context.textSecondary),
               onPressed: onMore,
             ),
           ],
@@ -251,3 +263,5 @@ class _AlbumTrackRow extends StatelessWidget {
     );
   }
 }
+
+

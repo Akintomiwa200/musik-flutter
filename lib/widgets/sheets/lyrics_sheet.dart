@@ -11,9 +11,10 @@ Future<void> showLyricsSheet(BuildContext context, Track track) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: const Color(0xFF282828),
+    backgroundColor: Colors.white,
+    barrierColor: Colors.black.withValues(alpha: 0.28),
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
     builder: (ctx) => _LyricsSheetBody(track: track),
   );
@@ -40,7 +41,8 @@ class _LyricsSheetBodyState extends State<_LyricsSheetBody> {
   }
 
   Future<void> _load() async {
-    final lyrics = await context.read<LyricsService>().fetchForTrack(widget.track);
+    final lyrics =
+        await context.read<LyricsService>().fetchForTrack(widget.track);
     if (mounted) setState(() => _lyrics = lyrics);
   }
 
@@ -69,54 +71,88 @@ class _LyricsSheetBodyState extends State<_LyricsSheetBody> {
 
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.72,
+      initialChildSize: 0.78,
       minChildSize: 0.45,
-      maxChildSize: 0.92,
+      maxChildSize: 0.94,
       builder: (_, __) {
         return SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 10),
+                  decoration: BoxDecoration(
+                    color: context.surfaceHighlight,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 12, 4),
+                padding: const EdgeInsets.fromLTRB(20, 14, 12, 8),
                 child: Row(
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Lyrics', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                          Text('Lyrics',
+                              style: TextStyle(
+                                  fontSize: 22,
+                                  color: context.textPrimary,
+                                  fontWeight: FontWeight.w900)),
                           const SizedBox(height: 4),
                           Text(
                             widget.track.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                            style: TextStyle(
+                                color: context.textSecondary, fontSize: 13),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon:
+                          Icon(Icons.close, color: context.textPrimary),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
               ),
-              const Divider(color: Color(0xFF3E3E3E), height: 1),
+              Divider(color: context.surfaceHighlight, height: 1),
               Expanded(
                 child: lyrics == null
-                    ? const Center(child: CircularProgressIndicator(color: AppColors.musikAccent))
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                            color: AppColors.musikAccent))
                     : !lyrics.hasLyrics
                         ? Center(
                             child: Padding(
                               padding: const EdgeInsets.all(24),
-                              child: Text(
-                                lyrics.instrumental
-                                    ? 'This one is instrumental.'
-                                    : 'No lyrics found for this track.',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: AppColors.textSecondary),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    lyrics.instrumental
+                                        ? 'This one is instrumental.'
+                                        : 'No lyrics found for this track.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        color: context.textSecondary),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  FilledButton.icon(
+                                    onPressed: () {
+                                      setState(() => _lyrics = null);
+                                      _load();
+                                    },
+                                    icon: const Icon(Icons.refresh, size: 18),
+                                    label: const Text('Retry'),
+                                  ),
+                                ],
                               ),
                             ),
                           )
@@ -127,33 +163,26 @@ class _LyricsSheetBodyState extends State<_LyricsSheetBody> {
                               if (lyrics.hasSynced) {
                                 final activeIdx = lyrics.indexAt(pos);
                                 if (activeIdx >= 0) {
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    _scrollToIndex(activeIdx, lyrics.synced.length);
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    _scrollToIndex(
+                                        activeIdx, lyrics.synced.length);
                                   });
                                 }
                                 return ListView.builder(
                                   controller: _scrollController,
-                                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                                  padding:
+                                      const EdgeInsets.fromLTRB(24, 20, 24, 32),
                                   itemCount: lyrics.synced.length,
                                   itemBuilder: (_, i) {
                                     final line = lyrics.synced[i];
                                     final isActive = i == activeIdx;
                                     final isPast = i < activeIdx;
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 10),
-                                      child: Text(
-                                        line.text,
-                                        style: TextStyle(
-                                          fontSize: isActive ? 22 : 18,
-                                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                                          height: 1.35,
-                                          color: isActive
-                                              ? AppColors.musikAccent
-                                              : isPast
-                                                  ? Colors.white38
-                                                  : Colors.white70,
-                                        ),
-                                      ),
+                                    return _KaraokeLine(
+                                      line: line,
+                                      position: pos,
+                                      isActive: isActive,
+                                      isPast: isPast,
                                     );
                                   },
                                 );
@@ -162,7 +191,10 @@ class _LyricsSheetBodyState extends State<_LyricsSheetBody> {
                                 padding: const EdgeInsets.all(24),
                                 child: Text(
                                   lyrics.plain ?? '',
-                                  style: const TextStyle(fontSize: 18, height: 1.6, color: Colors.white70),
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      height: 1.6,
+                                      color: context.textPrimary),
                                 ),
                               );
                             },
@@ -175,3 +207,72 @@ class _LyricsSheetBodyState extends State<_LyricsSheetBody> {
     );
   }
 }
+
+class _KaraokeLine extends StatelessWidget {
+  final LyricsLine line;
+  final Duration position;
+  final bool isActive;
+  final bool isPast;
+
+  const _KaraokeLine({
+    required this.line,
+    required this.position,
+    required this.isActive,
+    required this.isPast,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (!isActive || line.words.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Text(
+          line.text,
+          style: TextStyle(
+            fontSize: isActive ? 22 : 18,
+            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            height: 1.35,
+            color: isPast
+                ? theme.textTheme.bodySmall?.color?.withValues(alpha: 0.4)
+                : theme.textTheme.bodyLarge?.color,
+          ),
+        ),
+      );
+    }
+
+    final activeWordIdx = line.wordIndexAt(position);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Wrap(
+              children: List.generate(line.words.length, (i) {
+                final word = line.words[i];
+                final isCurrentWord = i == activeWordIdx;
+                final isPastWord = i < activeWordIdx;
+                return Text(
+                  '${word.word} ',
+                  style: TextStyle(
+                    fontSize: 22,
+                    height: 1.35,
+                    fontWeight: isCurrentWord ? FontWeight.w900 : FontWeight.w500,
+                    color: isCurrentWord
+                        ? AppColors.musikAccent
+                        : isPastWord
+                            ? theme.textTheme.bodySmall?.color?.withValues(alpha: 0.4)
+                            : theme.textTheme.bodyLarge?.color,
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+

@@ -98,7 +98,7 @@ class _UsbScreenState extends State<UsbScreen> {
                 if (_status != null)
                   Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text(_status!, style: const TextStyle(color: AppColors.textSecondary)),
+                    child: Text(_status!, style: TextStyle(color: context.textSecondary)),
                   ),
                 if (_devices.isNotEmpty) ...[
                   const Padding(
@@ -151,7 +151,7 @@ class _UsbScreenState extends State<UsbScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.usb_off, size: 64, color: AppColors.textMuted.withValues(alpha: 0.5)),
+                              Icon(Icons.usb_off, size: 64, color: context.textMuted.withValues(alpha: 0.5)),
                               const SizedBox(height: 16),
                               const Text('No USB tracks loaded'),
                               const SizedBox(height: 12),
@@ -187,3 +187,5 @@ class _UsbScreenState extends State<UsbScreen> {
     );
   }
 }
+
+

@@ -23,7 +23,7 @@ class UsbMusicService {
 
   /// Pick a USB / external storage folder via system file picker (SAF).
   Future<String?> pickUsbFolder() async {
-    final result = await FilePicker.platform.getDirectoryPath(
+    final result = await FilePicker.getDirectoryPath(
       dialogTitle: 'Select USB or music folder',
     );
     return result;

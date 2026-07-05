@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../services/app_navigation_service.dart';
 import '../widgets/persistent_bottom_chrome.dart';
 import 'home_screen.dart';
-import 'library_screen.dart';
+import 'profile_screen.dart';
+import 'queue_screen.dart';
+import 'recents_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
 
@@ -16,29 +18,31 @@ class MainShell extends StatelessWidget {
       MaterialPageRoute(builder: (_) => SettingsScreen(currentTab: currentTab)),
     );
     if (selected != null && context.mounted) {
-      context.read<AppNavigationService>().setTab(selected);
+      context.read<AppNavigationService>().setTabIndex(selected);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final tab = context.watch<AppNavigationService>().tabIndex;
-
-    final screens = [
+    final screens = <Widget>[
       HomeScreen(onOpenSettings: () => _openSettings(context, tab)),
       const SearchScreen(),
-      const LibraryScreen(),
+      const RecentsScreen(),
+      const QueueScreen(sourceLabel: 'Queue', isTab: true),
+      const ProfileScreen(isTab: true),
     ];
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       body: IndexedStack(
         index: tab,
         children: screens,
       ),
       bottomNavigationBar: PersistentBottomChrome(
         selectedIndex: tab,
-        onTabSelected: (i) => context.read<AppNavigationService>().setTab(i),
+        onTabSelected: (i) =>
+            context.read<AppNavigationService>().setTabIndex(i),
       ),
     );
   }

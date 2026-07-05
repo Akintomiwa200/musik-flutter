@@ -7,10 +7,12 @@ import '../theme/app_theme.dart';
 
 class QueueScreen extends StatelessWidget {
   final String sourceLabel;
+  final bool isTab;
 
   const QueueScreen({
     super.key,
     required this.sourceLabel,
+    this.isTab = false,
   });
 
   List<Track> _upcoming(AudioPlayerService player) {
@@ -26,7 +28,7 @@ class QueueScreen extends StatelessWidget {
     final upcoming = _upcoming(player);
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -34,15 +36,16 @@ class QueueScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
+                  if (!isTab)
+                    IconButton(
+                      icon: Icon(Icons.close, color: context.textPrimary),
+                      onPressed: () => Navigator.pop(context),
+                    ),
                   Expanded(
                     child: Text(
                       'Album radio based on $sourceLabel',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.textPrimary),
                     ),
                   ),
                   const SizedBox(width: 48),
@@ -57,15 +60,15 @@ class QueueScreen extends StatelessWidget {
                   children: [
                     Text(
                       current.title,
-                      style: const TextStyle(
-                        color: AppColors.musikAccent,
+                      style: TextStyle(
+                        color: context.accent,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
                       current.artist,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: TextStyle(color: context.textSecondary, fontSize: 13),
                     ),
                   ],
                 ),
@@ -77,7 +80,7 @@ class QueueScreen extends StatelessWidget {
                 child: Text(
                   'Next From:',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: context.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -133,12 +136,12 @@ class _QueueRow extends StatelessWidget {
     return ListTile(
       key: key,
       onTap: onTap,
-      leading: Icon(Icons.radio_button_unchecked, color: Colors.white.withValues(alpha: 0.5), size: 22),
-      title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(track.artist, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+      leading: Icon(Icons.radio_button_unchecked, color: context.textSecondary, size: 22),
+      title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.textPrimary)),
+      subtitle: Text(track.artist, style: TextStyle(color: context.textSecondary, fontSize: 13)),
       trailing: ReorderableDragStartListener(
         index: index,
-        child: const Icon(Icons.drag_handle, color: AppColors.textSecondary),
+        child: Icon(Icons.drag_handle, color: context.textSecondary),
       ),
     );
   }
@@ -157,22 +160,25 @@ class _QueueControls extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           IconButton(
-            icon: Icon(Icons.shuffle, color: player.shuffle ? AppColors.musikAccent : Colors.white70),
+            icon: Icon(Icons.shuffle, color: player.shuffle ? context.accent : context.textSecondary),
             onPressed: player.toggleShuffle,
           ),
-          IconButton(icon: const Icon(Icons.skip_previous, size: 32), onPressed: player.skipPrevious),
+          IconButton(icon: Icon(Icons.skip_previous, size: 32, color: context.textPrimary), onPressed: player.skipPrevious),
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: context.surface, shape: BoxShape.circle),
             child: IconButton(
-              icon: Icon(player.isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.black, size: 32),
+              icon: Icon(player.isPlaying ? Icons.pause : Icons.play_arrow, color: context.textPrimary, size: 32),
               onPressed: player.togglePlayPause,
             ),
           ),
-          IconButton(icon: const Icon(Icons.skip_next, size: 32), onPressed: player.skipNext),
+          IconButton(icon: Icon(Icons.skip_next, size: 32, color: context.textPrimary), onPressed: player.skipNext),
           IconButton(
-            icon: Icon(Icons.repeat, color: player.repeat ? AppColors.musikAccent : Colors.white70),
+            icon: Icon(
+              player.repeatMode == RepeatSetting.one ? Icons.repeat_one : Icons.repeat,
+              color: player.repeat ? context.accent : context.textSecondary,
+            ),
             onPressed: player.toggleRepeat,
           ),
         ],
@@ -180,3 +186,5 @@ class _QueueControls extends StatelessWidget {
     );
   }
 }
+
+

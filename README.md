@@ -2,7 +2,7 @@
 
 A **Spotify-inspired** Flutter music player for Android with **USB OTG** support and **downloadable APK** updates at every release.
 
-![Flutter](https://img.shields.io/badge/Flutter-3.2+-02569B?logo=flutter)
+![Flutter](https://img.shields.io/badge/Flutter-3.44+-02569B?logo=flutter)
 ![Platform](https://img.shields.io/badge/Platform-Android-green)
 
 ## Features
@@ -21,9 +21,10 @@ A **Spotify-inspired** Flutter music player for Android with **USB OTG** support
 
 ## Prerequisites
 
-1. [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.2+)
-2. Android SDK (API 24+)
-3. For USB testing: Android phone with **USB OTG** adapter
+1. [Flutter SDK](https://docs.flutter.dev/get-started/install) 3.44+ stable
+2. Android Studio or JDK 17+ available through `JAVA_HOME`
+3. Android SDK platform 36+ with Android build tools installed
+4. For USB testing: Android phone with **USB OTG** adapter
 
 ## Setup
 
@@ -51,6 +52,12 @@ flutter run
 
 ```powershell
 .\scripts\build_apk.ps1
+```
+
+If PowerShell blocks local scripts on your machine, run:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\build_apk.ps1
 ```
 
 ### Manual
