@@ -20,7 +20,7 @@ class ChoosePodcastsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+    backgroundColor: context.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
@@ -58,5 +58,3 @@ class ChoosePodcastsScreen extends StatelessWidget {
     );
   }
 }
-
-

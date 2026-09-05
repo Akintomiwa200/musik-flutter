@@ -44,7 +44,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 8),
           _SettingsCard(
             children: [
-              _DarkModeTile(),
+              _ThemeModeTile(),
               const _TileDivider(),
               _AccentColorTile(),
             ],
@@ -269,21 +269,102 @@ class _TileDivider extends StatelessWidget {
   }
 }
 
-class _DarkModeTile extends StatelessWidget {
+class _ThemeModeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeService = context.watch<ThemeService>();
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-      leading: Icon(
-        themeService.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-        color: context.textSecondary,
-      ),
-      title: const Text('Dark Mode', style: TextStyle(fontSize: 15)),
-      trailing: Switch(
-        value: themeService.isDarkMode,
-        activeColor: themeService.accentColor,
-        onChanged: (value) => themeService.setDarkMode(value),
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Appearance', style: TextStyle(fontSize: 15)),
+          ),
+        ),
+        _ThemeModeOption(
+          label: 'System default',
+          subtitle: 'Match your device theme',
+          icon: Icons.brightness_auto_outlined,
+          selected: themeService.preference == ThemeModePreference.system,
+          onTap: () => themeService.followSystem(),
+        ),
+        _ThemeModeOption(
+          label: 'Light',
+          subtitle: 'Always use light theme',
+          icon: Icons.light_mode_outlined,
+          selected: themeService.preference == ThemeModePreference.light,
+          onTap: () =>
+              themeService.setThemeMode(ThemeModePreference.light),
+        ),
+        _ThemeModeOption(
+          label: 'Dark',
+          subtitle: 'Always use dark theme',
+          icon: Icons.dark_mode_outlined,
+          selected: themeService.preference == ThemeModePreference.dark,
+          onTap: () => themeService.setThemeMode(ThemeModePreference.dark),
+        ),
+      ],
+    );
+  }
+}
+
+class _ThemeModeOption extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ThemeModeOption({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final themeService = context.watch<ThemeService>();
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: selected ? themeService.accentColor : context.textSecondary,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? themeService.accentColor : context.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_circle, color: themeService.accentColor, size: 20),
+          ],
+        ),
       ),
     );
   }

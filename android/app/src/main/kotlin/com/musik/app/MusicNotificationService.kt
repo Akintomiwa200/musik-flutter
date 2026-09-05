@@ -12,6 +12,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import java.net.HttpURLConnection
 import java.net.URL
 
 class MusicNotificationService : Service() {
@@ -20,30 +21,16 @@ class MusicNotificationService : Service() {
         const val CHANNEL_ID = "musik_playback"
         const val NOTIFICATION_ID = 1001
 
-        const val ACTION_PLAY = "com.musik.app.PLAY"
-        const val ACTION_PAUSE = "com.musik.app.PAUSE"
-        const val ACTION_NEXT = "com.musik.app.NEXT"
-        const val ACTION_PREV = "com.musik.app.PREV"
-        const val ACTION_STOP = "com.musik.app.STOP"
         const val ACTION_UPDATE = "com.musik.app.UPDATE"
         const val ACTION_CANCEL = "com.musik.app.CANCEL"
 
         const val EXTRA_TITLE = "title"
         const val EXTRA_ARTIST = "artist"
-        const val EXTRA_ALBUM = "album"
-        const val EXTRA_ART_URL = "artUrl"
         const val EXTRA_IS_PLAYING = "isPlaying"
-
-        private var _artBitmap: Bitmap? = null
-        private var _currentTitle = ""
-        private var _currentArtist = ""
-        private var _currentIsPlaying = false
-        private var _currentArtUrl = ""
-
-        fun setArtBitmap(bitmap: Bitmap?) {
-            _artBitmap = bitmap
-        }
+        const val EXTRA_ART_URL = "artUrl"
     }
+
+    private var _artBitmap: Bitmap? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -52,30 +39,20 @@ class MusicNotificationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_PLAY -> sendEventToFlutter("play")
-            ACTION_PAUSE -> sendEventToFlutter("pause")
-            ACTION_NEXT -> sendEventToFlutter("next")
-            ACTION_PREV -> sendEventToFlutter("prev")
-            ACTION_STOP -> {
-                sendEventToFlutter("stop")
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+            ACTION_UPDATE -> {
+                val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
+                val artist = intent.getStringExtra(EXTRA_ARTIST) ?: ""
+                val isPlaying = intent.getBooleanExtra(EXTRA_IS_PLAYING, false)
+                val artUrl = intent.getStringExtra(EXTRA_ART_URL) ?: ""
+
+                if (artUrl.isNotEmpty()) loadArtBitmap(artUrl)
+
+                val notification = buildNotification(title, artist, isPlaying)
+                startForeground(NOTIFICATION_ID, notification)
             }
             ACTION_CANCEL -> {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
-            }
-            ACTION_UPDATE -> {
-                _currentTitle = intent?.getStringExtra(EXTRA_TITLE) ?: _currentTitle
-                _currentArtist = intent?.getStringExtra(EXTRA_ARTIST) ?: _currentArtist
-                _currentIsPlaying = intent?.getBooleanExtra(EXTRA_IS_PLAYING, false) ?: _currentIsPlaying
-                val artUrl = intent?.getStringExtra(EXTRA_ART_URL) ?: _currentArtUrl
-                if (artUrl.isNotEmpty() && artUrl != _currentArtUrl) {
-                    _currentArtUrl = artUrl
-                    loadArtBitmap(artUrl)
-                }
-                val notification = buildNotification(_currentTitle, _currentArtist, _currentIsPlaying)
-                startForeground(NOTIFICATION_ID, notification)
             }
         }
         return START_NOT_STICKY
@@ -91,7 +68,9 @@ class MusicNotificationService : Service() {
         ).apply {
             description = "Shows current playing track"
             setShowBadge(false)
-            lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
         }
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(channel)
@@ -106,17 +85,8 @@ class MusicNotificationService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val playPauseAction = if (isPlaying) {
-            NotificationCompat.Action(
-                android.R.drawable.ic_media_pause, "Pause",
-                actionIntent(ACTION_PAUSE)
-            )
-        } else {
-            NotificationCompat.Action(
-                android.R.drawable.ic_media_play, "Play",
-                actionIntent(ACTION_PLAY)
-            )
-        }
+        val playPauseIcon = if (isPlaying) android.R.drawable.ic_media_pause
+                            else android.R.drawable.ic_media_play
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
@@ -127,49 +97,39 @@ class MusicNotificationService : Service() {
             .setContentIntent(openPendingIntent)
             .setOngoing(isPlaying)
             .setShowWhen(false)
-            .setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
-                    .setShowActionsInCompactView(0, 1, 2)
-            )
-            .addAction(android.R.drawable.ic_media_previous, "Previous", actionIntent(ACTION_PREV))
-            .addAction(playPauseAction)
-            .addAction(android.R.drawable.ic_media_next, "Next", actionIntent(ACTION_NEXT))
+            .addAction(android.R.drawable.ic_media_previous, "Prev", actionIntent("prev"))
+            .addAction(playPauseIcon, if (isPlaying) "Pause" else "Play", actionIntent(if (isPlaying) "pause" else "play"))
+            .addAction(android.R.drawable.ic_media_next, "Next", actionIntent("next"))
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(artist)
+                    .setBigContentTitle(title)
+            )
             .build()
     }
 
     private fun actionIntent(action: String): PendingIntent {
-        val intent = Intent(this, MusicNotificationService::class.java).apply {
-            this.action = action
+        val intent = Intent("com.musik.app.NOTIFICATION_ACTION").apply {
+            setPackage(packageName)
+            putExtra("action", action)
         }
-        return PendingIntent.getService(
-            this, action.hashCode(), intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
-    private fun sendEventToFlutter(event: String) {
-        try {
-            MainActivity.eventSink?.success(event)
-        } catch (_: Exception) {}
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        return PendingIntent.getBroadcast(this, action.hashCode(), intent, flags)
     }
 
     private fun loadArtBitmap(artUrl: String) {
         Thread {
             try {
                 val url = URL(artUrl)
-                val connection = url.openConnection()
-                connection.connectTimeout = 5000
-                connection.readTimeout = 5000
-                val input = connection.getInputStream()
-                val bitmap = BitmapFactory.decodeStream(input)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+                conn.connect()
+                val input = conn.inputStream
+                _artBitmap = BitmapFactory.decodeStream(input)
                 input.close()
-                _artBitmap = bitmap
-                // Rebuild notification with art
-                val notification = buildNotification(_currentTitle, _currentArtist, _currentIsPlaying)
-                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                manager.notify(NOTIFICATION_ID, notification)
             } catch (_: Exception) {}
         }.start()
     }

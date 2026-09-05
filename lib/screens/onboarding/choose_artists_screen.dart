@@ -63,9 +63,9 @@ class _ChooseArtistsScreenState extends State<ChooseArtistsScreen> {
     final canContinue = selected.length >= 3;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+    backgroundColor: context.background,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: context.background,
         elevation: 0,
         automaticallyImplyLeading: false,
         leading: Navigator.canPop(context)
@@ -222,5 +222,3 @@ class _ArtistTile extends StatelessWidget {
     );
   }
 }
-
-

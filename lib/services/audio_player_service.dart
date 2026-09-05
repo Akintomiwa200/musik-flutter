@@ -167,7 +167,6 @@ class AudioPlayerService extends ChangeNotifier {
     _notification.showNowPlaying(
       _currentTrack!,
       _state == PlaybackStatus.playing,
-      downloads: _downloadService,
     );
   }
 

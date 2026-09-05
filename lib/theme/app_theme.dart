@@ -24,6 +24,14 @@ class AppColors {
   static const Color _lightTextPrimary = Color(0xFF16131F);
   static const Color _lightTextSecondary = Color(0xFF7B7687);
 
+  /// Dark-theme surfaces (public for system UI overlays).
+  static const Color darkBackground = _darkBackground;
+  static const Color darkSurface = _darkSurface;
+  static const Color darkSurfaceHighlight = _darkSurfaceHighlight;
+
+  /// Light-theme surfaces (public for system UI overlays).
+  static const Color lightSurface = _lightSurface;
+
   /// Light-theme defaults for the primary mobile experience.
   static const Color background = _lightBackground;
   static const Color surface = _lightSurface;

@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 
 import '../models/track.dart';
 import 'audio_player_service.dart';
-import 'download_service.dart';
 
 class NotificationService {
   static const _channel = MethodChannel('com.musik.app/notification');
@@ -39,7 +38,7 @@ class NotificationService {
     _sub?.cancel();
   }
 
-  Future<void> showNowPlaying(Track track, bool isPlaying, {DownloadService? downloads}) async {
+  Future<void> showNowPlaying(Track track, bool isPlaying) async {
     try {
       await _channel.invokeMethod('showNotification', {
         'id': track.id,

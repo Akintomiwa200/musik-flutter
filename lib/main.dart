@@ -26,7 +26,7 @@ void main() {
   if (!kIsWeb && Platform.isWindows) {
     JustAudioMediaKit.ensureInitialized(windows: true, linux: false);
   }
-  SystemChrome.setSystemUIOverlayStyle(
+SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -62,15 +62,34 @@ class MusikApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeService()..load()),
       ],
       child: _CatalogSync(child: Consumer<ThemeService>(
-        builder: (_, themeService, __) => MaterialApp(
-          title: 'Musik',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.buildTheme(
-            dark: themeService.isDarkMode,
-            accent: themeService.accentColor,
-          ),
-          home: AuthGate(),
-        ),
+        builder: (context, themeService, __) {
+          final isDark = themeService.isDarkMode;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            SystemChrome.setSystemUIOverlayStyle(
+              SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness:
+                    isDark ? Brightness.light : Brightness.dark,
+                statusBarBrightness:
+                    isDark ? Brightness.dark : Brightness.light,
+                systemNavigationBarColor: isDark
+                    ? AppColors.darkSurface
+                    : AppColors.lightSurface,
+                systemNavigationBarIconBrightness:
+                    isDark ? Brightness.light : Brightness.dark,
+              ),
+            );
+          });
+          return MaterialApp(
+            title: 'Musik',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.buildTheme(
+              dark: isDark,
+              accent: themeService.accentColor,
+            ),
+            home: AuthGate(),
+          );
+        },
       )),
     );
   }
